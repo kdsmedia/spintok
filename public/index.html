@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spin Wheel App</title>
+    <!-- Google Font -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Stylesheet -->
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #c3a3f1, #6414e9);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .wrapper {
+            width: 90%;
+            max-width: 34.37em;
+            height: 34.37em;
+            background-color: #ffffff;
+            margin: 2em auto;
+            padding: 2em;
+            border-radius: 1em;
+            box-shadow: 0 4em 5em rgba(27, 8, 53, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        #wheel {
+            width: 100%;
+            height: 100%;
+        }
+        #final-value {
+            font-size: 1.5em;
+            text-align: center;
+            margin-top: 1.5em;
+            color: #202020;
+            font-weight: 500;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Footer Styles */
+        footer {
+            padding: 1em;
+            background-color: #ffffff;
+            box-shadow: 0 -4px 5px rgba(27, 8, 53, 0.2);
+            text-align: center;
+        }
+        #settings-btn {
+            border: 0;
+            background: radial-gradient(#fdcf3b 50%, #d88a40 85%);
+            color: #c66e16;
+            text-transform: uppercase;
+            font-size: 1em;
+            padding: 0.5em 1em;
+            border-radius: 0.5em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+        #settings-btn:hover {
+            background: radial-gradient(#d88a40 50%, #fdcf3b 85%);
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <canvas id="wheel"></canvas>
+        </div>
+        <div id="final-value">
+            <p>Waiting for gift...</p>
+        </div>
+    </div>
+    
+    <!-- Modal for Winner -->
+    <div id="winnerModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p id="winnerText"></p>
+        </div>
+    </div>
+
+    <!-- Modal for Settings -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Settings</h2>
+            <label for="tiktok-username">TikTok Username:</label>
+            <input type="text" id="tiktok-username" />
+            <button id="connect-btn">Connect</button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <button id="settings-btn">Settings</button>
+    </footer>
+
+    <!-- Chart JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- Chart JS Plugin for displaying text over chart -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.1.0/chartjs-plugin-datalabels.min.js"></script>
+    <!-- Script -->
+    <script>
+        const wheel = document.getElementById("wheel");
+        const finalValue = document.getElementById("final-value");
+        const winnerModal = document.getElementById("winnerModal");
+        const winnerText = document.getElementById("winnerText");
+        const closeModal = document.querySelector("#winnerModal .close");
+        const settingsBtn = document.getElementById("settings-btn");
+        const settingsModal = document.getElementById("settingsModal");
+        const settingsClose = document.querySelector("#settingsModal .close");
+        const connectBtn = document.getElementById("connect-btn");
+
+        // List of prizes
+        const prizes = [
+            "ZONK", "50F", "100F", "50V", "ZONK", "100V", "50L", "100L", 
+            "100V", "200V", "300V", "ZONK", "4000V", "500V", "1000V", 
+            "2000V", "3000V", "ZONK", "4000V", "5000V"
+        ];
+
+        // Create equal segments for each prize
+        const rotationValues = Array.from({ length: 20 }, (_, i) => ({
+            minDegree: i * 18,
+            maxDegree: (i + 1) * 18,
+            prize: prizes[i]
+        }));
+
+        // Create data for 20 equal segments
+        const data = Array(20).fill(1); // Each segment has equal value
+        const pieColors = Array.from({ length: 20 }, (_, i) => `hsl(${i * 360 / 20}, 70%, 50%)`); // Colors
+
+        let myChart = new Chart(wheel, {
+            plugins: [ChartDataLabels],
+            type: "pie",
+            data: {
+                labels: data.map((_, i) => i + 1), // Labels 1-20
+                datasets: [{
+                    backgroundColor: pieColors,
+                    data: data,
+                }],
+            },
+            options: {
+                responsive: true,
+                animation: { duration: 0 },
+                plugins: {
+                    tooltip: false,
+                    legend: { display: false },
+                    datalabels: {
+                        color: "#ffffff",
+                        formatter: (_, context) => context.chart.data.labels[context.dataIndex],
+                        font: { size: 18 },
+                    },
+                },
+            },
+        });
+
+        const prizeGenerator = (angleValue) => {
+            const result = rotationValues.find(
+                (rv) => angleValue >= rv.minDegree && angleValue < rv.maxDegree
+            );
+            if (result) {
+                winnerText.textContent = `Congratulations! You won: ${result.prize}`;
+            }
+            finalValue.innerHTML = `<p>${result ? `You won: ${result.prize}` : 'No win'}</p>`;
+        };
+
+        // WebSocket connection
+        const socket = new WebSocket('ws://localhost:8080');
+
+        socket.onmessage = function(event) {
+            const giftData = JSON.parse(event.data);
+            if (giftData.coin >= 20) {
+                // Start spinning wheel
+                processGift(giftData.coin);
+            }
+        };
+
+        const processGift = (coin) => {
+            finalValue.innerHTML = `<p>Gift received: ${coin} coins. Spinning the wheel...</p>`;
+
+            const spins = 10; // Number of spins
+            const degreesPerSpin = 360; // Degrees per spin
+            const randomDegree = Math.floor(Math.random() * 360); // Target degree
+            const totalRotation = spins * degreesPerSpin + randomDegree; // Total rotation
+
+            let currentRotation = 0;
+            let rotationSpeed = 10; // Speed of rotation
+            const deceleration = 0.98; // Deceleration factor
+
+            const rotationInterval = setInterval(() => {
+                currentRotation += rotationSpeed;
+                myChart.options.rotation = currentRotation % 360;
+                myChart.update();
+
+                if (currentRotation >= totalRotation) {
+                    const finalDegree = currentRotation % 360;
+                    prizeGenerator(finalDegree);
+                    clearInterval(rotationInterval);
+                    winnerModal.style.display = "flex"; // Show the modal
+                }
+
+                // Apply deceleration to slow down the rotation
+                rotationSpeed *= deceleration;
+            }, 10);
+        };
+
+        closeModal.addEventListener("click", () => {
+            winnerModal.style.display = "none"; // Hide the modal
+        });
+
+        window.onclick = (event) => {
+            if (event.target == winnerModal) {
+                winnerModal.style.display = "none"; // Hide the modal if clicked outside
+            }
+        };
+
+        settingsBtn.addEventListener("click", () => {
+            settingsModal.style.display = "flex"; // Show settings modal
+        });
+
+        settingsClose.addEventListener("click", () => {
+            settingsModal.style.display = "none"; // Hide settings modal
+        });
+
+        connectBtn.addEventListener("click", () => {
+            const username = document.getElementById("tiktok-username").value;
+            // Implement connection logic here
+            alert(`Connecting to TikTok user: ${username}`);
+        });
+    </script>
+</body>
+</html>
