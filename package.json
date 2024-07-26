@@ -1,0 +1,14 @@
+{
+  "name": "tik-tok-websocket",
+  "version": "1.0.0",
+  "description": "A Spin Wheel app connected with TikTok Live through WebSocket.",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "ws": "^8.5.0"
+  },
+  "author": "",
+  "license": "MIT"
+}
