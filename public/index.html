@@ -2,13 +2,8 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SpinTok</title>
-    <!-- Google Font -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Stylesheet -->
+    <title>Spin Wheel App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap" rel="stylesheet" />
     <style>
         * {
             padding: 0;
@@ -179,108 +174,116 @@
             prize: prizes[i]
         }));
 
-        // Create data for 20 equal segments
-        const data = Array(20).fill(1); // Each segment has equal value
-        const pieColors = Array.from({ length: 20 }, (_, i) => `hsl(${i * 360 / 20}, 70%, 50%)`); // Colors
-
-        let myChart = new Chart(wheel, {
-            plugins: [ChartDataLabels],
-            type: "pie",
+        // Create Chart.js wheel chart
+        const ctx = wheel.getContext("2d");
+        const chart = new Chart(ctx, {
+            type: "doughnut",
             data: {
-                labels: data.map((_, i) => i + 1), // Labels 1-20
+                labels: prizes,
                 datasets: [{
-                    backgroundColor: pieColors,
-                    data: data,
-                }],
+                    data: new Array(prizes.length).fill(1),
+                    backgroundColor: Array(prizes.length).fill("#ff9999"),
+                    borderColor: "#ffffff",
+                    borderWidth: 2,
+                }]
             },
             options: {
-                responsive: true,
-                animation: { duration: 0 },
+                rotation: -90,
+                cutout: "70%",
+                circumference: 360,
                 plugins: {
-                    tooltip: false,
-                    legend: { display: false },
-                    datalabels: {
-                        color: "#ffffff",
-                        formatter: (_, context) => context.chart.data.labels[context.dataIndex],
-                        font: { size: 18 },
+                    tooltip: {
+                        enabled: false
                     },
+                    datalabels: {
+                        display: true,
+                        color: "#000",
+                        font: {
+                            weight: "bold"
+                        },
+                        formatter: (value, context) => {
+                            return context.chart.data.labels[context.dataIndex];
+                        }
+                    }
                 },
-            },
-        });
-
-        const prizeGenerator = (angleValue) => {
-            const result = rotationValues.find(
-                (rv) => angleValue >= rv.minDegree && angleValue < rv.maxDegree
-            );
-            if (result) {
-                winnerText.textContent = `Congratulations! You won: ${result.prize}`;
+                animation: {
+                    onComplete: () => {
+                        const chartInstance = chart;
+                        const ctx = chartInstance.ctx;
+                        const width = chartInstance.width;
+                        const height = chartInstance.height;
+                        ctx.save();
+                        ctx.font = "bold 2em Poppins";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = "#000000";
+                        ctx.restore();
+                    }
+                }
             }
-            finalValue.innerHTML = `<p>${result ? `You won: ${result.prize}` : 'No win'}</p>`;
-        };
+        });
 
         // WebSocket connection
-        const socket = new WebSocket('ws://localhost:8080');
+        const ws = new WebSocket("ws://localhost:8081");
 
-        socket.onmessage = function(event) {
-            const giftData = JSON.parse(event.data);
-            if (giftData.coin >= 20) {
-                // Start spinning wheel
-                processGift(giftData.coin);
+        ws.onmessage = function(event) {
+            // Handle incoming messages
+            const message = event.data;
+            if (message === 'spin') {
+                spinWheel();
+            } else {
+                finalValue.textContent = message;
             }
         };
 
-        const processGift = (coin) => {
-            finalValue.innerHTML = `<p>Gift received: ${coin} coins. Spinning the wheel...</p>`;
+        function spinWheel() {
+            // Simulate spinning the wheel
+            const spinDuration = 3000; // 3 seconds
+            const rotation = Math.random() * 360;
+            const degree = rotation + 3600; // spin multiple times
+            chart.options.rotation = -degree;
+            chart.update();
 
-            const spins = 10; // Number of spins
-            const degreesPerSpin = 360; // Degrees per spin
-            const randomDegree = Math.floor(Math.random() * 360); // Target degree
-            const totalRotation = spins * degreesPerSpin + randomDegree; // Total rotation
+            setTimeout(() => {
+                const result = getPrize(degree);
+                showWinner(result);
+            }, spinDuration);
+        }
 
-            let currentRotation = 0;
-            let rotationSpeed = 10; // Speed of rotation
-            const deceleration = 0.98; // Deceleration factor
+        function getPrize(degree) {
+            const normalizedDegree = (degree % 360 + 360) % 360;
+            const rotation = rotationValues.find(r => normalizedDegree >= r.minDegree && normalizedDegree < r.maxDegree);
+            return rotation ? rotation.prize : "Unknown";
+        }
 
-            const rotationInterval = setInterval(() => {
-                currentRotation += rotationSpeed;
-                myChart.options.rotation = currentRotation % 360;
-                myChart.update();
+        function showWinner(prize) {
+            winnerText.textContent = `Congratulations! You won ${prize}`;
+            winnerModal.style.display = "flex";
+        }
 
-                if (currentRotation >= totalRotation) {
-                    const finalDegree = currentRotation % 360;
-                    prizeGenerator(finalDegree);
-                    clearInterval(rotationInterval);
-                    winnerModal.style.display = "flex"; // Show the modal
-                }
-
-                // Apply deceleration to slow down the rotation
-                rotationSpeed *= deceleration;
-            }, 10);
+        closeModal.onclick = function() {
+            winnerModal.style.display = "none";
         };
 
-        closeModal.addEventListener("click", () => {
-            winnerModal.style.display = "none"; // Hide the modal
-        });
-
-        window.onclick = (event) => {
-            if (event.target == winnerModal) {
-                winnerModal.style.display = "none"; // Hide the modal if clicked outside
-            }
+        settingsBtn.onclick = function() {
+            settingsModal.style.display = "flex";
         };
 
-        settingsBtn.addEventListener("click", () => {
-            settingsModal.style.display = "flex"; // Show settings modal
-        });
+        settingsClose.onclick = function() {
+            settingsModal.style.display = "none";
+        };
 
-        settingsClose.addEventListener("click", () => {
-            settingsModal.style.display = "none"; // Hide settings modal
-        });
-
-        connectBtn.addEventListener("click", () => {
+        connectBtn.onclick = function() {
             const username = document.getElementById("tiktok-username").value;
             // Implement connection logic here
-            alert(`Connecting to TikTok user: ${username}`);
-        });
+        };
+
+        window.onclick = function(event) {
+            if (event.target == winnerModal || event.target == settingsModal) {
+                winnerModal.style.display = "none";
+                settingsModal.style.display = "none";
+            }
+        };
     </script>
 </body>
 </html>
