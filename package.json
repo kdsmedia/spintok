@@ -1,5 +1,5 @@
 {
-  "name": "tik-tok-websocket",
+  "name": "spintok",
   "version": "1.0.0",
   "description": "A Spin Wheel app connected with TikTok Live through WebSocket.",
   "main": "server/server.js",
