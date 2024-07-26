@@ -1,7 +1,7 @@
 {
-  "name": "spintok",
+  "name": "SpinTok",
   "version": "1.0.0",
-  "description": "A Spin Wheel app connected with TikTok Live through WebSocket.",
+  "description": "A WebSocket server for TikTok interaction",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js"
@@ -11,8 +11,8 @@
     "ws": "^8.8.1"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
-  "author": "",
+  "author": "Sidhanie",
   "license": "MIT"
 }
